@@ -1,0 +1,14 @@
+<html>
+<head>
+  <title>Index</title>
+</head>
+<body>
+  <ul>
+    {% for elt in elts %}
+    <li>
+      <a href="{{ elt.slug }}.html">{{ elt.title }}</a>
+    </li>
+    {% endfor %}
+  </ul>
+</body>
+</html>

@@ -74,7 +74,7 @@ Trail Type: Loop
 Once the content of every section looks good enough, generate the contents:
 
 ```
-$ mapstatic build contents/ --destination=output/
+$ mapstatic --input=contents/ --output==html/ build contents/ --destination=output/
 ```
 
 ## Inspiration
