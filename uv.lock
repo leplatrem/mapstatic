@@ -42,6 +42,18 @@ wheels = [
 ]
 
 [[package]]
+name = "geojson-pydantic"
+version = "2.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/38/0b/485bfbe208875af513831a4f91966fe504488ba45bbaa60ed39c23a077dc/geojson_pydantic-2.2.0.tar.gz", hash = "sha256:d9c28d672a754b8dcda27b4192aa9ef9638c373a8e960baa8dcf907a0c8b897c", size = 8205, upload-time = "2026-09-21T09:29:53.208Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/01/34/4b21a7796bf013bab15568ca83f1e2f90c0babbf8e59ecca7bf2e74adb8e/geojson_pydantic-2.2.0-py3-none-any.whl", hash = "sha256:5048d9519510ccaa7d1c1e6d8c04d790c59a365221a565288e03ec5ccae61f20", size = 9507, upload-time = "2026-09-21T09:29:51.921Z" },
+]
+
+[[package]]
 name = "iniconfig"
 version = "2.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -55,6 +67,7 @@ name = "mapstatic"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "geojson-pydantic" },
     { name = "markdown-it-py" },
     { name = "typer" },
 ]
@@ -67,6 +80,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "geojson-pydantic", specifier = ">=2,<3" },
     { name = "markdown-it-py", specifier = ">=3" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6" },

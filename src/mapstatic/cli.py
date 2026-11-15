@@ -10,7 +10,10 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from geojson_pydantic import Feature
+from geojson_pydantic.geometries import parse_geometry_obj
 from markdown_it import MarkdownIt
+from pydantic import ValidationError
 
 app = typer.Typer(
     no_args_is_help=True, help="Build interactive map sites from static files."
@@ -112,21 +115,32 @@ def build_site(
             fail(f"Feature '{feature_id}' has invalid GeoJSON: {exc}")
         if not isinstance(item, dict):
             fail(f"Feature '{feature_id}' GeoJSON must be an object")
-        if item.get("type") in GEOMETRIES:
-            item = {"type": "Feature", "properties": {}, "geometry": item}
-        elif item.get("type") != "Feature" or not isinstance(item.get("geometry"), dict):
-            fail(
-                f"Feature '{feature_id}' GeoJSON must be a Geometry or a GeoJSON Feature"
-            )
-        geometry = item["geometry"]
-        geometry_type = geometry.get("type")
+        try:
+            if item.get("type") == "Feature":
+                parsed_feature = Feature(**item)
+                geometry = parsed_feature.geometry
+                if geometry is None:
+                    fail(f"Feature '{feature_id}' must have a geometry")
+                properties = parsed_feature.properties or {}
+                item = parsed_feature.model_dump(mode="json", exclude_none=True)
+                item["properties"] = properties
+            else:
+                geometry = parse_geometry_obj(item)
+                properties = {}
+                item = {
+                    "type": "Feature",
+                    "geometry": geometry.model_dump(mode="json", exclude_none=True),
+                    "properties": properties,
+                }
+        except (ValidationError, TypeError, ValueError) as exc:
+            fail(f"Feature '{feature_id}' has invalid GeoJSON: {exc}")
+
+        geometry_type = geometry.type
         if geometry_type not in GEOMETRIES:
-            fail(f"Feature '{feature_id}' has an unsupported or missing geometry type")
-        if not valid_coordinates(geometry_type, geometry.get("coordinates")):
+            fail(f"Feature '{feature_id}' has an unsupported geometry type: {geometry_type}")
+        geometry_data = geometry.model_dump(mode="json", exclude_none=True)
+        if not coordinates_within_bounds(geometry_data["coordinates"]):
             fail(f"Feature '{feature_id}' has invalid coordinates for {geometry_type}")
-        properties = item.get("properties") or {}
-        if not isinstance(properties, dict):
-            fail(f"Feature '{feature_id}' properties must be a JSON object")
         page_markdown = md_path.read_text(encoding="utf-8")
         if geo_path == md_path:
             page_markdown = GEOJSON_FENCE_RE.sub("", page_markdown, count=1)
@@ -350,48 +364,21 @@ def html_escape(value: str) -> str:
     return html.escape(value, quote=True)
 
 
-def valid_coordinates(kind: str, coordinates: object) -> bool:
-    """Check coordinate nesting and minimum positions for the supported GeoJSON types."""
-    depth = {
-        "Point": 0,
-        "MultiPoint": 1,
-        "LineString": 1,
-        "MultiLineString": 2,
-        "Polygon": 2,
-        "MultiPolygon": 3,
-    }[kind]
-
-    def positions(value: object, remaining: int) -> bool:
-        if remaining == 0:
-            return (
-                isinstance(value, list)
-                and len(value) >= 2
-                and all(
-                    isinstance(n, (int, float)) and not isinstance(n, bool) and math.isfinite(n)
-                    for n in value[:2]
-                )
-                and -180 <= value[0] <= 180
-                and -90 <= value[1] <= 90
-            )
-        return (
-            isinstance(value, list)
-            and len(value) > 0
-            and all(positions(child, remaining - 1) for child in value)
-        )
-
-    if not positions(coordinates, depth):
+def coordinates_within_bounds(coordinates: object) -> bool:
+    """Enforce Mapstatic's WGS84 longitude and latitude bounds."""
+    if not isinstance(coordinates, list) or not coordinates:
         return False
-    if kind == "LineString":
-        return len(coordinates) >= 2
-    if kind == "MultiLineString":
-        return all(len(line) >= 2 for line in coordinates)
-    if kind == "Polygon":
-        return all(len(ring) >= 4 and ring[0] == ring[-1] for ring in coordinates)
-    if kind == "MultiPolygon":
-        return all(
-            len(ring) >= 4 and ring[0] == ring[-1] for polygon in coordinates for ring in polygon
+    if all(
+        isinstance(value, (int, float)) and not isinstance(value, bool) for value in coordinates
+    ):
+        return (
+            len(coordinates) >= 2
+            and math.isfinite(coordinates[0])
+            and math.isfinite(coordinates[1])
+            and -180 <= coordinates[0] <= 180
+            and -90 <= coordinates[1] <= 90
         )
-    return True
+    return all(coordinates_within_bounds(position) for position in coordinates)
 
 
 @app.command()

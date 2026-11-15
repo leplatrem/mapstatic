@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 import typer
 
-from mapstatic.cli import build_directory, build_site, valid_coordinates
+from mapstatic.cli import build_directory, build_site
 
 
 def make_feature(map_dir: Path, feature_id: str = "sample-place") -> Path:
@@ -210,29 +210,32 @@ def test_build_fails_for_invalid_coordinates(tmp_path: Path) -> None:
         build_site(map_dir, tmp_path / "site", None, "tiles", "attribution")
 
 
-@pytest.mark.parametrize(
-    ("kind", "coordinates"),
-    [
-        ("Point", [0, 0]),
-        ("MultiPoint", [[0, 0], [1, 1]]),
-        ("LineString", [[0, 0], [1, 1]]),
-        ("MultiLineString", [[[0, 0], [1, 1]]]),
-        ("Polygon", [[[0, 0], [1, 0], [1, 1], [0, 0]]]),
-        ("MultiPolygon", [[[[0, 0], [1, 0], [1, 1], [0, 0]]]]),
-    ],
-)
-def test_valid_coordinates_accepts_supported_geometries(kind: str, coordinates: object) -> None:
-    assert valid_coordinates(kind, coordinates)
+def test_build_rejects_geometry_collection(tmp_path: Path) -> None:
+    map_dir = tmp_path / "unsupported-map"
+    feature_dir = make_feature(map_dir)
+    (feature_dir / "geometry.geojson").write_text(
+        json.dumps({"type": "GeometryCollection", "geometries": []}), encoding="utf-8"
+    )
+
+    with pytest.raises(typer.BadParameter, match="unsupported geometry type"):
+        build_site(map_dir, tmp_path / "site", None, "tiles", "attribution")
 
 
 @pytest.mark.parametrize(
     ("kind", "coordinates"),
     [
-        ("Point", [181, 0]),
         ("LineString", [[0, 0]]),
         ("Polygon", [[[0, 0], [1, 0], [1, 1], [2, 2]]]),
-        ("MultiPolygon", [[[[0, 0], [1, 0], [1, 1], [0, 0]]], []]),
     ],
 )
-def test_valid_coordinates_rejects_malformed_geometries(kind: str, coordinates: object) -> None:
-    assert not valid_coordinates(kind, coordinates)
+def test_build_rejects_structurally_invalid_geojson(
+    tmp_path: Path, kind: str, coordinates: object
+) -> None:
+    map_dir = tmp_path / "broken-map"
+    feature_dir = make_feature(map_dir)
+    feature = json.loads((feature_dir / "geometry.geojson").read_text(encoding="utf-8"))
+    feature["geometry"] = {"type": kind, "coordinates": coordinates}
+    (feature_dir / "geometry.geojson").write_text(json.dumps(feature), encoding="utf-8")
+
+    with pytest.raises(typer.BadParameter, match="invalid GeoJSON"):
+        build_site(map_dir, tmp_path / "site", None, "tiles", "attribution")
