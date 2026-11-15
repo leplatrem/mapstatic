@@ -1,95 +1,165 @@
 # Mapstatic
 
-*Mapstatic* creates interactive and printable maps from a folder of Markdown files and geographic data.
+*Mapstatic* builds static, mobile-first interactive maps from GeoJSON and Markdown files. The generated files can be hosted on GitHub Pages or any static file host; no application server is required.
 
-Each element of the map is materialized by a subfolder that contains a GPX/KML/GeoJSON file, a Markdown document, and some pictures.
+## Features
 
-## Goals
+- Each geometry opens its Markdown details in a side panel.
+- Feature titles come from the first Markdown heading and appear on hover.
+- Feature properties are shown in the details panel.
+- Optional images can be included with Markdown.
+- Map appearance can be customized per map with `style.json`.
+- Each map can use a custom `template.html`.
+- OpenStreetMap tiles are used by default.
 
-(Eventually) *mapstatic* would be able to create an interactive Web map showing all elements together. Each element has a dedicated page, with the focused map and the text coming from the structured Markdown content.
+## Install
 
-- Publish a map within seconds. *mapstatic* can run as a Github action on a repository of files.
-- Host a map application without any GIS stack. *mapstatic* builds static content from static files;
-- Focus on aesthetics. *mapstatic* creates beautiful static pages for each map, easily printable;
-- Focus on minimalism. *mapstatic* uses the minimum amount of JavaScript;
+Install the CLI with [uv](https://docs.astral.sh/uv/):
 
-(Eventually) *mapstatic* would output:
-
-- Interactive maps
-- Static vectorial maps with legends
-- Downloadable / printable pages
-- Thumbnails of images
-- Converted formats (from/to GPX, KML, GeoJSON)
-
-(Eventually) *mapstatic* would take care of:
-
-- Extracting basic geographical data (length, etc.)
-- Replacing keywords or placeholders by icons or widgets
-- Obtaining elevation data (eg. using external APIs)
-- Linking different elements by proximity or metadata
-- Only rebuilding what changed
-
-## Usage
-
-```
-$ pip install mapstatic
+```sh
+uv tool install .
 ```
 
-### Add a new element
+For development:
 
-1. Create a folder, its name will be the map object identifier
-1. Store the `main.gpx` (or `.kml`, or `.geojson`) into it
-1. Run `mapstatic init my-folder/`
-   This will create the Markdown file `main.md`, with a skeleton of one section for each geometry found in the geographical data.
-1. Edit the content!
+```sh
+uv sync --extra dev
+```
+
+## Map input
+
+A map folder contains map elements as folders or Markdown files, plus optional top-level content:
+
+```text
+my-map/
+├── template.html       # optional custom page shell
+├── style.json          # optional Leaflet styles
+├── old-town/
+│   ├── geometry.geojson
+│   ├── page.md
+│   └── images/
+│       └── square.jpg
+└── river-walk.md
+```
+
+### Elements as folder
+
+Each map element folder contains one `geometry.geojson` and one `page.md`. The GeoJSON can be a bare geometry or a GeoJSON Feature (geometry + properties).
+
+```json
+{
+  "type": "Feature",
+  "properties": { "source": "Community walking survey" },
+  "geometry": {
+    "type": "Point",
+    "coordinates": [2.1734, 41.3851]
+  }
+}
+```
 
 ```md
-# main.md ; generated-by-version: 0.1
+# Old Town Square
 
-# geometry-1: Via Ferrata Teletubbies (K2)
+![The square at sunset](images/square.jpg)
 
-![Top view](panorama.jpg)
-
-## Description
-
-Along the Congost del MontRebei...
-
-## Attributes
-
-Difficulty: Easy
-Trail Type: Loop
-
-# waypoint-1: Ermita de la Pertusa
-
-![Ermita, west side](ermita.jpg)
-
-# waypoint-2:
-# waypoint-3:
-# waypoint-4:
-
+A short description of this place.
 ```
 
-### Build
+### Elements as file
 
-Once the content of every section looks good enough, generate the contents:
+A map element can instead be stored in one top-level Markdown file. It should include exactly one fenced `geojson` block containing a bare geometry or a Feature:
 
+````md
+# Riverside Steps
+
+```geojson
+{
+  "type": "LineString",
+  "coordinates": [[2.17, 41.38], [2.18, 41.39]]
+}
 ```
-$ mapstatic build contents/ --destination=output/
+
+The rest of the description for this element.
+````
+
+> [!NOTE]
+> `GeometryCollection` is not supported.
+
+
+## Build and preview
+
+```sh
+mapstatic build my-map/ --destination site/
+python -m http.server --directory site/ 8000
 ```
 
-## Inspiration
+Open <http://127.0.0.1:8000>
 
-- Static generators like [Pelican](https://getpelican.com) or [Sigal](https://github.com/saimn/sigal)
-- [printmaps](https://www.printmaps.net/creating-maps-for-tourist-guides/)
-- [Geotrek](https://rando.ecrins-parcnational.fr/en/trek/903316-Eychauda-Lake)
+### Build a site containing multiple maps
 
-## Technologies
+Give `mapstatic build` a directory containing a site tree. Files outside detected map folders are copied with their relative paths; detected map folders are replaced with generated map output:
 
-- Python
-- Shapely (?)
-- Leaflet (?)
-- Mapnik (?)
-- OpenMapTiles (?)
+```text
+neighborhood/
+├── index.html
+├── home.css
+├── empty-buildings/
+│   ├── template.html
+│   ├── style.json
+│   └── ... feature folders ...
+└── recent-expulsions/
+    ├── template.html
+    ├── style.json
+    └── ... feature folders and Markdown files ...
+```
+
+## Customize a map
+
+### Appearance
+
+Put `style.json` in a map folder. Its `point` options are passed to Leaflet's `CircleMarker`; `geometry` options are passed to Leaflet paths. Missing options inherit the built-in defaults in `src/mapstatic/static/style.json`.
+
+```json
+{
+  "point": {
+    "radius": 7,
+    "color": "#fff",
+    "weight": 2,
+    "fillColor": "#c24c3d",
+    "fillOpacity": 1
+  },
+  "geometry": {
+    "color": "#c24c3d",
+    "weight": 4,
+    "opacity": 0.9,
+    "fillColor": "#c24c3d",
+    "fillOpacity": 0.12
+  }
+}
+```
+
+### Page shell
+
+Put `template.html` in the map folder to replace the built-in shell. It must include the `{{ title }}`, `{{ count }}`, `{{ head }}`, `{{ map }}`, `{{ panel }}`, and `{{ scripts }}` slots. Mapstatic uses the template in the map folder automatically. Pass `--template path/to/other.html` to override it for a one-off build.
+
+## Community workflow
+
+Contributors can create or edit map content through GitHub and open a pull request. A successful build checks geometries and required Markdown pages.
+
+## Tiles and attribution
+
+The default basemap uses OpenStreetMap's standard tile service and displays its attribution. Tile services have their own usage policies and capacity limits; for a public or high-traffic deployment, configure a tile provider appropriate for that use. Set `--tile-url` and `--tile-attribution` to use another XYZ tile service.
+
+## Development
+
+```sh
+uv sync --extra dev
+uv run mapstatic --help
+uv run ruff check .
+uv run pytest
+npm ci
+npm run format:check
+```
 
 ## License
 

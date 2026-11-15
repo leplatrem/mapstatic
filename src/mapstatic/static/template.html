@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f7f7f2">
+    <title>{{ title }}</title>
+    {{ head }}
+  </head>
+  <body>
+    <main class="map-shell">
+      <header class="map-header">
+        <a class="wordmark" href="./">{{ title }}</a>
+        <span class="feature-count">{{ count }} items</span>
+      </header>
+      {{ map }}
+      {{ panel }}
+      <footer class="map-footer">Select a feature to explore</footer>
+    </main>
+    {{ scripts }}
+  </body>
+</html>

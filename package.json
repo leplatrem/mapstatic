@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "scripts": {
+    "format:check": "prettier --check \"src/mapstatic/static/**/*.{js,css}\""
+  },
+  "devDependencies": {
+    "prettier": "3.6.2"
+  }
+}

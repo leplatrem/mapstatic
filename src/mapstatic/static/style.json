@@ -1,0 +1,16 @@
+{
+  "point": {
+    "radius": 7,
+    "color": "#fff",
+    "weight": 2,
+    "fillColor": "#e45d3f",
+    "fillOpacity": 1
+  },
+  "geometry": {
+    "color": "#e45d3f",
+    "weight": 4,
+    "opacity": 0.9,
+    "fillColor": "#e45d3f",
+    "fillOpacity": 0.12
+  }
+}
