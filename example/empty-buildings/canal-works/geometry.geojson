@@ -1,0 +1,5 @@
+{
+  "type": "Feature",
+  "properties": { "source": "Linden Ward vacancy walk, September 2024 (fictional)" },
+  "geometry": { "type": "Point", "coordinates": [2.1648, 41.3882] }
+}

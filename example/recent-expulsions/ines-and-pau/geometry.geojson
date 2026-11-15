@@ -1,0 +1,5 @@
+{
+  "type": "Feature",
+  "properties": { "source": "Linden Ward tenant diary (fictional)" },
+  "geometry": { "type": "Point", "coordinates": [2.1771, 41.3849] }
+}
